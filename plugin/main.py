@@ -62,7 +62,7 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
 
             # 材料验证
             if units_by_item == None:
-                plugin_event.reply('无匹配目标，请检查输入是否正确，如：大小写，符号')
+                plugin_event.reply(strings.str_no_target)
                 return
 
             # 筛选
@@ -114,7 +114,7 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
 
             # 关卡验证
             if units_by_stage == None:
-                plugin_event.reply('无匹配目标，请检查输入是否正确，如：大小写，符号')
+                plugin_event.reply(strings.str_no_target)
                 return
 
             # 筛选

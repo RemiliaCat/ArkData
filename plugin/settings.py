@@ -1,5 +1,3 @@
-
-
 class Strings(object):
     def __init__(self):
         '''

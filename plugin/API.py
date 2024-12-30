@@ -8,6 +8,7 @@ class Data(object):
             self.item_id: str = unit['itemId']
             self.stage_id: str = unit['stageId']
             self.ap_cost: int = unit['apCost']
+            self.drop_type: str = None
             self.times: int = unit['times']
             self.quantity: int = unit['quantity']
             self.ap_drop_rate: float = 0
