@@ -22,5 +22,5 @@
 ### Tips
 > 请将本仓库`extend/arkimages/`置于 OlivOS 的`data/images/`下
 
-## 声明
+## Statement
 > 本仓库部分数据由 [企鹅物流数据统计](https://penguin-stats.io/) 提供。使用的一切数据，版权均归属 [Arknights/上海鹰角网络科技有限公司](https://www.hypergryph.com/) ，仅用于学习和交流。
