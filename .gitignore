@@ -1,4 +1,2 @@
 __pycache__/
-plugin/items.json
-plugin/matrix.json
-plugin/stages.json
+plugin/*.json

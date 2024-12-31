@@ -1,0 +1,23 @@
+{
+    "name": "明日方舟数据查询",
+    "author": "RmCat",
+    "namespace": "ArkSearcher",
+    "info": "目前可查询材料掉率",
+    "priority": 30000,
+    "svn": 1,
+    "version": "1.0.0",
+    "compatible_svn": 100,
+    "message_mode": "olivos_string",
+    "support": [
+        {
+            "sdk": "onebot",
+            "platform": "qq",
+            "model": "all"
+        },
+        {
+            "sdk": "all",
+            "platform": "all",
+            "model": "all"
+        }
+    ]
+}
