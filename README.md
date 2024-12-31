@@ -14,13 +14,13 @@
 
 #### Example
 ```python
-/ark stage 1-7  -> 查询关卡1-7的素材掉率
+/ark stage 1-7  ->  查询关卡1-7的素材掉率
 ```
 
 ## ArkData Extends
 > **ArkData Extends** 提供明日方舟数据相关的 OlivaDice 的deck及mod扩展文件
 ### Tips
-> 请将本仓库`extend/arkimages/`置于 OlivOS 的`data/images/`下
+> 请将本仓库的`extend/arkimages/`置于 OlivOS 的`data/images/`下
 
 ## Statement
 > 本仓库部分数据由 [企鹅物流数据统计](https://penguin-stats.io/) 提供。使用的一切数据，版权均归属 [Arknights/上海鹰角网络科技有限公司](https://www.hypergryph.com/) ，仅用于学习和交流。
