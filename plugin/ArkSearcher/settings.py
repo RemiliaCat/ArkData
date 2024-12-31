@@ -1,4 +1,4 @@
-class Strings(object):
+class Settings(object):
     def __init__(self):
         '''
         带*号代表推荐设置
@@ -42,3 +42,6 @@ class Strings(object):
             self.str_match_attrs,
             self.str_match_attrs
         )
+
+        # 数据刷新时间*
+        self.int_refresh_timing = 4

@@ -25,13 +25,14 @@ def read(pt: str):
         return json.load(file)
 
 
-def selector(units, is_open: bool = True, max_rate: float = None, top_rate: int = None):
+def selector(units, block_zones: tuple = None, is_open: bool = True, max_rate: float = None, top_rate: int = None):
     '''
     筛选器
-    @info:  min_rate与top_rate二选一，优先top_rate
-    @param: is_open:筛选已开放关卡/材料
-    @param: max_rate:筛选最低理智期望
-    @param: top_rate:筛选前n位最低理智期望
+    @info                   :   min_rate与top_rate二选一，优先top_rate
+    @param zone_type        :   筛选stage中的zoneId
+    @param is_open          :   筛选已开放关卡/材料
+    @param max_rate         :   筛选最低理智期望
+    @param top_rate         :   筛选前n位最低理智期望
     '''
     is_min = True
     if top_rate:
@@ -39,6 +40,9 @@ def selector(units, is_open: bool = True, max_rate: float = None, top_rate: int 
         units = units[:top_rate]
         is_min = False
     for unit in units:
+        if block_zones:
+            if unit.zone_id in block_zones:
+                units.remove(unit)
         if is_open:
             if unit.end is not None:
                 units.remove(unit)
