@@ -1,4 +1,5 @@
 from . import assistant
+from . import settings
 import requests
 
 
@@ -8,7 +9,7 @@ class Data(object):
             self.item_id: str = unit['itemId']
             self.stage_id: str = unit['stageId']
             self.ap_cost: int = unit['apCost']
-            self.drop_type: str = None
+            self.zone_id: str = unit['zoneId']
             self.times: int = unit['times']
             self.quantity: int = unit['quantity']
             self.ap_drop_rate: float = 0
@@ -45,6 +46,7 @@ class Data(object):
         def __init__(self, stage: dict):
             self.id: str = stage['stageId']
             self.code: str = stage['code']
+            self.zone_id: str = stage['zoneId']
             self.ap_cost: int = stage['apCost']
 
     def __init__(self):
@@ -64,7 +66,7 @@ class Data(object):
         if not self.matrix_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'src/gamedata/matrix.json'), self.matrix_response.json())
+            'resource/gamedata/matrix.json'), self.matrix_response.json())
         self._Matrix()
         return self.matrix_response
 
@@ -73,7 +75,7 @@ class Data(object):
         if not self.item_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'src/gamedata/items.json'), self.item_response.json())
+            'resource/gamedata/items.json'), self.item_response.json())
         self._Items()
         return self.item_response
 
@@ -82,7 +84,7 @@ class Data(object):
         if not self.stage_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'src/gamedata/stages.json'), self.stage_response.json())
+            'resource/gamedata/stages.json'), self.stage_response.json())
         self._Stages()
         return self.stage_response
 
@@ -90,19 +92,21 @@ class Data(object):
         '''
         Drop Matrix Model
         {
-        stageId: string,
-        itemId: string,
-        quantity: number,
-        times: number,
-        start: number,
-        end: number
+            stageId: string,
+            itemId: string,
+            quantity: number,
+            times: number,
+            start: number,
+            end: number
         }
         '''
         tmp_matrix: list = assistant.read(
-            assistant.path('src/gamedata/matrix.json'))['matrix']
+            assistant.path('resource/gamedata/matrix.json'))['matrix']
         self.matrix = []
         for tmp_dict_unit in tmp_matrix:
-            tmp_dict_unit['apCost'] = self.stages[tmp_dict_unit['stageId']].ap_cost
+            tmp_stage = self.stages[tmp_dict_unit['stageId']]
+            tmp_dict_unit['apCost'] = tmp_stage.ap_cost
+            tmp_dict_unit['zoneId'] = tmp_stage.zone_id
             tmp_MatrixUnit_unit = self.MatrixUnit(tmp_dict_unit)
             self.matrix.append(tmp_MatrixUnit_unit)
 
@@ -110,67 +114,54 @@ class Data(object):
 
     def _Items(self):
         '''
-           items.json Model
-           {
-              "itemId": string,
-              "name": string,
-              "name_i18n": {
-                 "en": string,
-                 "ja": string,
-                 "ko": string,
-                 "zh": string
-              },
-              "existence": {
-                 "CN": {
-                       "exist": bool
-                 },
-                 "JP": {
-                       "exist": bool
-                 },
-                 "KR": {
-                       "exist": bool
-                 },
-                 "US": {
-                       "exist": bool
-                 }
-              },
-              "itemType": string,
-              "sortId": int,
-              "rarity": int,
-              "groupID": string,
-              "spriteCoord": [
-                 int,
-                 int
-              ],
-              "alias": {
-                 "ja": [
-                       "入門作戦記録",
-                       "にゅうもんさくせんきろく",
-                       "ニュウモンサクセンキロク"
-                 ],
-                 "zh": [
-                       "基础作战记录",
-                       "狗粮",
-                       "录像带",
-                       "经验卡"
-                 ]
-              },
-              "pron": {
-                 "ja": [
-                       "nyuumon`sakusen`kiroku",
-                       "nyuumon`sakusen`kiroku"
-                 ],
-                 "zh": [
-                       "ji`chu`zuo`zhan`ji`lu",
-                       "gou`liang",
-                       "lu`xiang`dai",
-                       "jing`yan`ka"
-                 ]
-              }
-           },
-           '''
+        items.json Model
+        {
+            "itemId": string,
+            "name": string,
+            "name_i18n": {
+                dict
+            },
+            "existence": {
+                "CN": {
+                    "exist": bool
+                },
+                "JP": {
+                    "exist": bool
+                },
+                "KR": {
+                    "exist": bool
+                },
+                "US": {
+                    "exist": bool
+                }
+            },
+            "itemType": string,
+            "sortId": int,
+            "rarity": int,
+            "groupID": string,
+            "spriteCoord": [
+                int
+            ],
+            "alias": {
+                "ja": [
+                    string
+                ],
+                "zh": [
+                    string
+                ]
+            },
+            "pron": {
+                "ja": [
+                    string
+                ],
+                "zh": [
+                    string
+                ]
+            }
+        },
+        '''
         tmp_list_items: list = assistant.read(
-            assistant.path('src/gamedata/items.json'))
+            assistant.path('resource/gamedata/items.json'))
         self.items = {}
         if tmp_list_items is not None:
             for tmp_dict_item in tmp_list_items:
@@ -221,7 +212,7 @@ class Data(object):
         }
         '''
         tmp_list_stages: list = assistant.read(
-            assistant.path('src/gamedata/stages.json'))
+            assistant.path('resource/gamedata/stages.json'))
         self.stages = {}
         if tmp_list_stages is not None:
             for tmp_dict_stage in tmp_list_stages:
