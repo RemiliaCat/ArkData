@@ -66,7 +66,7 @@ class Data(object):
         if not self.matrix_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'src/gamedata/matrix.json'), self.matrix_response.json())
+            'resource/gamedata/matrix.json'), self.matrix_response.json())
         self._Matrix()
         return self.matrix_response
 
@@ -75,7 +75,7 @@ class Data(object):
         if not self.item_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'src/gamedata/items.json'), self.item_response.json())
+            'resource/gamedata/items.json'), self.item_response.json())
         self._Items()
         return self.item_response
 
@@ -84,7 +84,7 @@ class Data(object):
         if not self.stage_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'src/gamedata/stages.json'), self.stage_response.json())
+            'resource/gamedata/stages.json'), self.stage_response.json())
         self._Stages()
         return self.stage_response
 
@@ -101,7 +101,7 @@ class Data(object):
         }
         '''
         tmp_matrix: list = assistant.read(
-            assistant.path('src/gamedata/matrix.json'))['matrix']
+            assistant.path('resource/gamedata/matrix.json'))['matrix']
         self.matrix = []
         for tmp_dict_unit in tmp_matrix:
             tmp_stage = self.stages[tmp_dict_unit['stageId']]
@@ -161,7 +161,7 @@ class Data(object):
         },
         '''
         tmp_list_items: list = assistant.read(
-            assistant.path('src/gamedata/items.json'))
+            assistant.path('resource/gamedata/items.json'))
         self.items = {}
         if tmp_list_items is not None:
             for tmp_dict_item in tmp_list_items:
@@ -212,7 +212,7 @@ class Data(object):
         }
         '''
         tmp_list_stages: list = assistant.read(
-            assistant.path('src/gamedata/stages.json'))
+            assistant.path('resource/gamedata/stages.json'))
         self.stages = {}
         if tmp_list_stages is not None:
             for tmp_dict_stage in tmp_list_stages:
