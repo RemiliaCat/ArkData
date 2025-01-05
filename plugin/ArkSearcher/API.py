@@ -9,6 +9,7 @@ class Data(object):
             self.item_id: str = None
             self.stage_id: str = None
             self.zone_id: str = None
+            self.zone_subtype: str = None
             self.ap_cost: int = -1
             self.open_time: int = None
             self.close_time: int = None
@@ -18,7 +19,7 @@ class Data(object):
             self.quantity: int = None
             self.ap_drop_rate: float = 0
             self.drop_probability: float = 0
-            self.is_open: bool = None
+            self.is_open: bool = False
             self.initUnit(unit)
 
         def initUnit(self, unit: dict):
@@ -35,16 +36,17 @@ class Data(object):
             self.ap_drop_rate: float = 0
             self.drop_probability: float = 0
 
+            if self.close_time is None:
+                self.is_open = True
+
             if self.times != 0:
                 self.drop_probability = round((self.quantity / self.times), 3)
             if self.drop_probability != 0:
                 self.ap_drop_rate = round(
                     (self.ap_cost / self.drop_probability), 1)
 
-            if self.close_time is not None:
-                self.is_open = False
-            else:
-                self.is_open = True
+            tmp_zone = Data._get_zone(self.zone_id)
+            self.zone_subtype = tmp_zone['subtype']
 
     class Item(object):
         '''
@@ -90,42 +92,49 @@ class Data(object):
 
     def __init__(self):
         self.matrix_url = 'https://penguin-stats.io/PenguinStats/api/v2/result/matrix?server=CN&show_closed_zones=true'
-        self.item_url = 'https://penguin-stats.cn/PenguinStats/api/v2/items'
-        self.stage_url = 'https://penguin-stats.cn/PenguinStats/api/v2/stages'
-        self.matrix_response = None
-        self.item_response = None
-        self.stage_response = None
+        self.items_url = 'https://penguin-stats.cn/PenguinStats/api/v2/items'
+        self.stages_url = 'https://penguin-stats.cn/PenguinStats/api/v2/stages'
+        self.zone_url = 'https://penguin-stats.io/PenguinStats/api/v2/zones/{}'
+        self._matrix_response = None
+        self._item_response = None
+        self._stage_response = None
         self.matrix: list[self.MatrixUnit] = []
         self.items: dict[self.Item] = {}
         self.stages: dict[self.Stage] = {}
+        self.zones: dict = {}
         self.get_and_refresh()
 
+    def _get_zone(self, zone_id: str):
+        tmp_response = requests.get(self.zone_url.format(zone_id))
+        tmp_dict_zone = tmp_response.json()
+        return tmp_dict_zone
+
     def _get_and_refresh_matrix(self):
-        self.matrix_response = requests.get(self.matrix_url)
-        if not self.matrix_response.status_code == 200:
+        self._matrix_response = requests.get(self.matrix_url)
+        if not self._matrix_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'resource/gamedata/matrix.json'), self.matrix_response.json())
+            'resource/gamedata/matrix.json'), self._matrix_response.json())
         self._Matrix()
-        return self.matrix_response
+        return self._matrix_response
 
     def _get_and_refresh_item(self):
-        self.item_response = requests.get(self.item_url)
-        if not self.item_response.status_code == 200:
+        self._item_response = requests.get(self.items_url)
+        if not self._item_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'resource/gamedata/items.json'), self.item_response.json())
+            'resource/gamedata/items.json'), self._item_response.json())
         self._Items()
-        return self.item_response
+        return self._item_response
 
     def _get_and_refresh_stage(self):
-        self.stage_response = requests.get(self.stage_url)
-        if not self.stage_response.status_code == 200:
+        self._stage_response = requests.get(self.stages_url)
+        if not self._stage_response.status_code == 200:
             return None
         assistant.write(assistant.path(
-            'resource/gamedata/stages.json'), self.stage_response.json())
+            'resource/gamedata/stages.json'), self._stage_response.json())
         self._Stages()
-        return self.stage_response
+        return self._stage_response
 
     def _Matrix(self):
         '''

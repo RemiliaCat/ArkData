@@ -25,10 +25,14 @@ def read(pt: str):
         return json.load(file)
 
 
-def matrix_filter(units, block_zone: tuple = None, block_perm: bool = False, block_closure: bool = True, max_rate: float = None, top_rate: int = None):
+def matrix_filter(
+    units, block_perm: bool = False,
+    block_closure: bool = True,
+    max_rate: float = None,
+    top_rate: int = None
+):
     '''Marix过滤器
     @info               :   min_rate与top_rate二选一，优先top_rate
-    @param block        :   筛选stage中的zoneId
     @param block_disperm:   筛选永久关卡（如CW-8·别传）
     @param block_closure:   筛选已开放关卡/物品
     @param max_rate     :   筛选最高理智期望
@@ -40,11 +44,8 @@ def matrix_filter(units, block_zone: tuple = None, block_perm: bool = False, blo
         units = units[:top_rate]
         is_min = False
     for unit in units:
-        if block_zone:
-            if unit.zone_id in block_zone:
-                units.remove(unit)
         if block_perm:
-            if unit.item_id[-5:-1] == '_perm':
+            if unit.zone_subtype == 'ACTIVITY_PERMANENT':
                 units.remove(unit)
         if block_closure:
             if unit.close_time is not None:
