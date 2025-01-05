@@ -67,28 +67,28 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
 
             # 筛选
             top = None
-            max = None
+            maxn = None
             # 如果有20个以上的单元，筛选最低理智期望的20个
             if len(units_by_item) >= 15:
                 top = 15
             # 否则，如果材料稀有等级为0~4，分别设置最小边界
             elif item.rarity == 0:
-                max = 10
+                maxn = 10
             elif item.rarity == 1:
-                max = 20
+                maxn = 20
             elif item.rarity == 2:
-                max = 50
+                maxn = 50
             elif item.rarity == 3:
-                max = 100
+                maxn = 100
             elif item.rarity == 4:
-                max = None
+                maxn = None
             if top:
-                units_by_item = assistant.selector(
-                    units_by_item, block_zones=('gachabox'), top_rate=top)
+                units_by_item = assistant.matrix_filter(
+                    units_by_item, top_rate=top)
                 tip = '（已简化）'
             else:
-                units_by_item = assistant.selector(
-                    units_by_item, block_zones=('gachabox'), max_rate=min)
+                units_by_item = assistant.matrix_filter(
+                    units_by_item, max_rate=maxn)
                 tip = '（已简化）'
 
             # 字符串格式化并输出
@@ -111,6 +111,7 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
             # 变量设置
             stage_code = match_arg
             stage_id = game_data.name_to_id(stage_code, flag='stage')
+            print(stage_id)
             units_by_stage = game_data.stage_order(stage_id)
             tip = ''
 
@@ -120,20 +121,19 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
                 return
 
             # 筛选
-            units_by_stage = assistant.selector(
-                units_by_stage, block_zones=('gachabox'), is_open=True)
-
+            units_by_stage = assistant.matrix_filter(
+                units_by_stage)
             # 字符串格式化并输出
-            open_drop_items: str = ''
+            drop_items: str = ''
             for unit in units_by_stage:
                 unit: API.Data.MatrixUnit
                 tmp_item_name: str = game_data.id_to_name(
                     unit.item_id)
-                open_drop_items += tmp_item_name + \
+                drop_items += tmp_item_name + \
                     '(' + str(round(unit.drop_probability*100, 1)) + '%)，'
-            open_drop_items = open_drop_items[:-1]
+            drop_items = drop_items[:-1]
             list_format_subcommands = {'stage_code': stage_code,
-                                       'tip': tip, 'open_drop_items': open_drop_items}
+                                       'tip': tip, 'open_drop_items': drop_items}
             plugin_event.reply(
                 obj_settings.str_freply_stage.format(**list_format_subcommands))
 

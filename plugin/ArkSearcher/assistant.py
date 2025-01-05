@@ -25,14 +25,14 @@ def read(pt: str):
         return json.load(file)
 
 
-def selector(units, block_zones: tuple = None, is_open: bool = True, max_rate: float = None, top_rate: int = None):
-    '''
-    筛选器
-    @info                   :   min_rate与top_rate二选一，优先top_rate
-    @param zone_type        :   筛选stage中的zoneId
-    @param is_open          :   筛选已开放关卡/材料
-    @param max_rate         :   筛选最低理智期望
-    @param top_rate         :   筛选前n位最低理智期望
+def matrix_filter(units, block_zone: tuple = None, block_perm: bool = False, block_closure: bool = True, max_rate: float = None, top_rate: int = None):
+    '''Marix过滤器
+    @info               :   min_rate与top_rate二选一，优先top_rate
+    @param block        :   筛选stage中的zoneId
+    @param block_disperm:   筛选永久关卡（如CW-8·别传）
+    @param block_closure:   筛选已开放关卡/物品
+    @param max_rate     :   筛选最高理智期望
+    @param top_rate     :   筛选前n位最低理智期望
     '''
     is_min = True
     if top_rate:
@@ -40,13 +40,36 @@ def selector(units, block_zones: tuple = None, is_open: bool = True, max_rate: f
         units = units[:top_rate]
         is_min = False
     for unit in units:
-        if block_zones:
-            if unit.zone_id in block_zones:
+        if block_zone:
+            if unit.zone_id in block_zone:
                 units.remove(unit)
-        if is_open:
-            if unit.end is not None:
+        if block_perm:
+            if unit.item_id[-5:-1] == '_perm':
+                units.remove(unit)
+        if block_closure:
+            if unit.close_time is not None:
                 units.remove(unit)
         if max_rate and is_min:
             if unit.ap_drop_rate > max_rate:
                 units.remove(unit)
+    return units
+
+
+def item_filter(units: dict):
+    '''items筛选器
+    '''
+    return units
+
+
+def stage_filter(units: dict, block_perm: bool = True, block_closure: bool = True):
+    '''stages过滤器
+    '''
+    for key in units.keys():
+        if block_closure:
+            if units[key].existence.get('close_time') is not None:
+                units.pop(key)
+        if block_perm:
+            unit_id = units[key].id
+            if unit_id[-5:-1] == '_perm':
+                units.pop(key)
     return units

@@ -6,26 +6,45 @@ import requests
 class Data(object):
     class MatrixUnit(object):
         def __init__(self, unit: dict):
+            self.item_id: str = None
+            self.stage_id: str = None
+            self.zone_id: str = None
+            self.ap_cost: int = -1
+            self.open_time: int = None
+            self.close_time: int = None
+            self.start: int = None
+            self.end: int = None
+            self.times: int = None
+            self.quantity: int = None
+            self.ap_drop_rate: float = 0
+            self.drop_probability: float = 0
+            self.is_open: bool = None
+            self.initUnit(unit)
+
+        def initUnit(self, unit: dict):
             self.item_id: str = unit['itemId']
             self.stage_id: str = unit['stageId']
-            self.ap_cost: int = unit['apCost']
             self.zone_id: str = unit['zoneId']
+            self.ap_cost: int = unit['apCost']
+            self.open_time: int = unit['open_time']
+            self.close_time: int = unit['close_time']
+            self.start: int = unit['start']
+            self.end: int = unit['end']
             self.times: int = unit['times']
             self.quantity: int = unit['quantity']
             self.ap_drop_rate: float = 0
             self.drop_probability: float = 0
+
             if self.times != 0:
                 self.drop_probability = round((self.quantity / self.times), 3)
             if self.drop_probability != 0:
                 self.ap_drop_rate = round(
                     (self.ap_cost / self.drop_probability), 1)
-            self.start: int = unit['start']
-            self.end: int = unit['end']
-            self.is_open: bool = None
-            if self.end == None:
-                self.is_open = True
-            else:
+
+            if self.close_time is not None:
                 self.is_open = False
+            else:
+                self.is_open = True
 
     class Item(object):
         '''
@@ -33,10 +52,21 @@ class Data(object):
         '''
 
         def __init__(self, item: dict):
-            self.id: str = item['itemId']
-            self.name: str = item['name']
-            self.rarity: int = item['rarity']
-            self.group_id: str = item['groupID']
+            self.id: str = ''
+            self.icon_id: str = ''
+            self.name: str = ''
+            self.rarity: int = -1
+            self.initItem(item)
+
+        def initItem(self, item: dict):
+            if 'itemId' in item:
+                self.id: str = item['itemId']
+            if 'iconId' in item:
+                self.icon_id: str = item['iconId']
+            if 'name' in item:
+                self.name: str = item['name']
+            if 'rarity' in item:
+                self.rarity: int = item['rarity']
 
     class Stage(object):
         '''
@@ -44,13 +74,22 @@ class Data(object):
         '''
 
         def __init__(self, stage: dict):
+            self.id: str = ''
+            self.code: str = ''
+            self.zone_id: str = ''
+            self.ap_cost: int = -1
+            self.existence: dict = {}
+            self.initStage(stage)
+
+        def initStage(self, stage: dict):
             self.id: str = stage['stageId']
             self.code: str = stage['code']
             self.zone_id: str = stage['zoneId']
             self.ap_cost: int = stage['apCost']
+            self.existence: dict = stage['existence']['CN']
 
     def __init__(self):
-        self.matrix_url = 'https://penguin-stats.cn/PenguinStats/api/v2/result/matrix'
+        self.matrix_url = 'https://penguin-stats.io/PenguinStats/api/v2/result/matrix?server=CN&show_closed_zones=true'
         self.item_url = 'https://penguin-stats.cn/PenguinStats/api/v2/items'
         self.stage_url = 'https://penguin-stats.cn/PenguinStats/api/v2/stages'
         self.matrix_response = None
@@ -103,11 +142,13 @@ class Data(object):
         tmp_matrix: list = assistant.read(
             assistant.path('resource/gamedata/matrix.json'))['matrix']
         self.matrix = []
-        for tmp_dict_unit in tmp_matrix:
-            tmp_stage = self.stages[tmp_dict_unit['stageId']]
-            tmp_dict_unit['apCost'] = tmp_stage.ap_cost
-            tmp_dict_unit['zoneId'] = tmp_stage.zone_id
-            tmp_MatrixUnit_unit = self.MatrixUnit(tmp_dict_unit)
+        for tmp_unit in tmp_matrix:
+            tmp_stage = self.stages[tmp_unit['stageId']]
+            tmp_unit['apCost'] = tmp_stage.ap_cost
+            tmp_unit['zoneId'] = tmp_stage.zone_id
+            tmp_unit['open_time'] = tmp_stage.existence.get('open_time')
+            tmp_unit['close_time'] = tmp_stage.existence.get('close_time')
+            tmp_MatrixUnit_unit = self.MatrixUnit(tmp_unit)
             self.matrix.append(tmp_MatrixUnit_unit)
 
         return self.matrix
@@ -234,21 +275,25 @@ class Data(object):
 
     def name_to_id(self, name: str, flag: str = 'item'):
         if flag == 'item':
-            for i in self.items.keys():
-                if name == self.items[i].name:
-                    return i
+            tmp_items = assistant.item_filter(self.items)
+            for key in tmp_items.keys():
+                if name == self.items[key].name:
+                    return self.items[key].id
         elif flag == 'stage':
-            for i in self.stages.keys():
-                if name == self.stages[i].code:
-                    return i
+            tmp_stages = assistant.stage_filter(self.stages)
+            for key in tmp_stages.keys():
+                if name == tmp_stages[key].code:
+                    return tmp_stages[key].id
 
     def id_to_name(self, id: str, flag: str = 'item'):
         if flag == 'item':
-            if id in self.items.keys():
-                return self.items[id].name
+            items = assistant.item_filter(self.items)
+            if id in items.keys():
+                return items[id].name
         elif flag == 'stage':
-            if id in self.stages.keys():
-                return self.stages[id].code
+            stages = assistant.stage_filter(self.stages)
+            if id in stages.keys():
+                return stages[id].code
 
     def load_item(self, item_id) -> Item:
         return self.Item(self.items[item_id])

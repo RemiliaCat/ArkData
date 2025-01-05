@@ -32,7 +32,7 @@ class Settings(object):
             self.str_match_subcommand_stage = self.str_match_subcommand_stage + i + '|'
         self.str_match_subcommand_stage = self.str_match_subcommand_stage[:-1]
 
-        # 合并所有param
+        # 合并所有subcommand
         self.str_match_subcommands = self.str_match_subcommand_item + \
             '|'+self.str_match_subcommand_stage
 
