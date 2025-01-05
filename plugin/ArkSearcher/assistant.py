@@ -26,7 +26,8 @@ def read(pt: str):
 
 
 def matrix_filter(
-    units, block_perm: bool = False,
+    units,
+    block_perm: bool = False,
     block_closure: bool = True,
     max_rate: float = None,
     top_rate: int = None
