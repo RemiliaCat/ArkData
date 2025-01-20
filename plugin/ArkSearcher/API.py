@@ -1,14 +1,33 @@
 from . import assistant
 from . import settings
 import requests
+import time
 
 
 class Data(object):
-    class MatrixUnit(object):
+
+    def __init__(self, **kwargs):
+        self.matrix_basic_url = 'https://penguin-stats.cn/PenguinStats/api/v2/result/matrix?'
+        self.items_basic_url = 'https://penguin-stats.cn/PenguinStats/api/v2/items/'
+        self.stages_basic_url = 'https://penguin-stats.cn/PenguinStats/api/v2/stages/'
+        self.zone_basic_url = 'https://penguin-stats.cn/PenguinStats/api/v2/zones/'
+        self.matrix: dict = {}
+        self.matrix['by_item'] = {}
+        self.matrix['by_stage'] = {}
+        self.items: dict[self.Item_T] = {}
+        self.stages: dict[self.Stage_T] = {}
+        self.zones: dict = {}
+        self.get_item_all()
+        self.get_stage_all()
+        self.get_zone_all()
+        self.get_matrix(**kwargs)
+
+    class MatrixUnit_T(object):
         def __init__(self, unit: dict):
             self.item_id: str = None
             self.stage_id: str = None
             self.zone_id: str = None
+            self.zone_subtype: str = None
             self.ap_cost: int = -1
             self.open_time: int = None
             self.close_time: int = None
@@ -16,15 +35,16 @@ class Data(object):
             self.end: int = None
             self.times: int = None
             self.quantity: int = None
-            self.ap_drop_rate: float = 0
-            self.drop_probability: float = 0
-            self.is_open: bool = None
+            self.ap_expec: float = 0
+            self.drop_prob: float = 0
+            self.is_open: bool = False
             self.initUnit(unit)
 
         def initUnit(self, unit: dict):
             self.item_id: str = unit['itemId']
             self.stage_id: str = unit['stageId']
             self.zone_id: str = unit['zoneId']
+            self.zone_subtype = None
             self.ap_cost: int = unit['apCost']
             self.open_time: int = unit['open_time']
             self.close_time: int = unit['close_time']
@@ -32,21 +52,35 @@ class Data(object):
             self.end: int = unit['end']
             self.times: int = unit['times']
             self.quantity: int = unit['quantity']
-            self.ap_drop_rate: float = 0
-            self.drop_probability: float = 0
+            self.ap_expec: float = 0
+            self.drop_prob: float = 0
+            self.get_subType()
 
-            if self.times != 0:
-                self.drop_probability = round((self.quantity / self.times), 3)
-            if self.drop_probability != 0:
-                self.ap_drop_rate = round(
-                    (self.ap_cost / self.drop_probability), 1)
-
-            if self.close_time is not None:
-                self.is_open = False
-            else:
+            if self.close_time is None:
                 self.is_open = True
 
-    class Item(object):
+            if self.times != 0:
+                self.drop_prob = round((self.quantity / self.times), 3)
+            if self.drop_prob != 0:
+                self.ap_expec = round(
+                    (self.ap_cost / self.drop_prob), 1)
+
+        def is_close(self):
+            if self.close_time is None:
+                return False
+            # time.time():s，close_time:ms
+            return time.time() * 1000 > self.close_time
+
+        def get_subType(self):
+            self.zone_subtype = None
+            tmp_zone_response = requests.get(
+                'https://penguin-stats.cn/PenguinStats/api/v2/zones/{}'.format(self.zone_id))
+            if not tmp_zone_response == 200:
+                tmp_zone = tmp_zone_response.json()
+                self.zone_subtype = tmp_zone['subType']
+            return self.zone_subtype
+
+    class Item_T(object):
         '''
         暂不清楚为什么要用Item类代替Item字典
         '''
@@ -68,7 +102,7 @@ class Data(object):
             if 'rarity' in item:
                 self.rarity: int = item['rarity']
 
-    class Stage(object):
+    class Stage_T(object):
         '''
         暂不清楚为什么要用Stage类代替Stage字典
         '''
@@ -88,244 +122,171 @@ class Data(object):
             self.ap_cost: int = stage['apCost']
             self.existence: dict = stage['existence']['CN']
 
-    def __init__(self):
-        self.matrix_url = 'https://penguin-stats.io/PenguinStats/api/v2/result/matrix?server=CN&show_closed_zones=true'
-        self.item_url = 'https://penguin-stats.cn/PenguinStats/api/v2/items'
-        self.stage_url = 'https://penguin-stats.cn/PenguinStats/api/v2/stages'
-        self.matrix_response = None
-        self.item_response = None
-        self.stage_response = None
-        self.matrix: list[self.MatrixUnit] = []
-        self.items: dict[self.Item] = {}
-        self.stages: dict[self.Stage] = {}
-        self.get_and_refresh()
+    # def __get_zone(self, zone_id):
+    #     tmp_response = requests.get(self.zone_basic_url+zone_id)
+    #     if not tmp_response.status_code == 200:
+    #         return None
+    #     tmp_dict_zone = tmp_response.json()
+    #     return tmp_dict_zone
 
-    def _get_and_refresh_matrix(self):
-        self.matrix_response = requests.get(self.matrix_url)
-        if not self.matrix_response.status_code == 200:
+    def refresh(self):
+        self.get_item_all()
+        self.get_stage_all()
+        self.get_zone_all()
+        self.get_matrix()
+
+    def get_matrix(self, **kwargs):
+        tmp_matrix_url = self.matrix_basic_url
+        if kwargs != {}:
+            for key, value in kwargs.items():
+                tmp_matrix_url += '{}={}&'.format(key, value)
+            tmp_matrix_url = tmp_matrix_url[:-1]
+        tmp_matrix_response = assistant.get_response(tmp_matrix_url)
+        if not tmp_matrix_response.status_code == 200:
             return None
-        assistant.write(assistant.path(
-            'resource/gamedata/matrix.json'), self.matrix_response.json())
-        self._Matrix()
-        return self.matrix_response
 
-    def _get_and_refresh_item(self):
-        self.item_response = requests.get(self.item_url)
-        if not self.item_response.status_code == 200:
+        self.matrix['by_item'].clear()
+        self.matrix['by_stage'].clear()
+        tmp_list_matrix = tmp_matrix_response.json()['matrix']
+        # tmp_matrix = self.Matrix_T()
+        tmp_matrix = self.matrix
+        assistant.write(assistant.path(
+            'resource/gamedata/matrix.json'), tmp_matrix_response.json())
+        for tmp_raw_unit in tmp_list_matrix:
+            tmp_new_unit = {}
+            tmp_stage = self.stages[tmp_raw_unit['stageId']]
+            tmp_new_unit['item_id'] = tmp_raw_unit['itemId']
+            tmp_new_unit['stage_id'] = tmp_raw_unit['stageId']
+            tmp_new_unit['zone_id'] = tmp_stage.zone_id
+            tmp_new_unit['zone_subtype'] = self.zones[tmp_stage.zone_id]['subType']
+            tmp_new_unit['ap_cost'] = tmp_stage.ap_cost
+            tmp_new_unit['quantity'] = tmp_raw_unit['quantity']
+            tmp_new_unit['times'] = tmp_raw_unit['times']
+            tmp_new_unit['open_time'] = tmp_stage.existence.get('open_time')
+            tmp_new_unit['close_time'] = tmp_stage.existence.get('close_time')
+            tmp_new_unit['drop_prob'] = self.__calcu_drop_prob(
+                tmp_new_unit['quantity'], tmp_new_unit['times'])
+            tmp_new_unit['ap_expec'] = self.__calcu_ap_expec(
+                tmp_new_unit['ap_cost'], tmp_new_unit['drop_prob'])
+            if not tmp_new_unit['item_id'] in tmp_matrix['by_item']:
+                tmp_matrix['by_item'][tmp_new_unit['item_id']] = []
+            if not tmp_new_unit['stage_id'] in tmp_matrix['by_stage']:
+                tmp_matrix['by_stage'][tmp_new_unit['stage_id']] = []
+            tmp_matrix['by_item'][tmp_new_unit['item_id']].append(tmp_new_unit)
+            tmp_matrix['by_stage'][tmp_new_unit['stage_id']].append(
+                tmp_new_unit)
+        self.matrix = tmp_matrix
+
+    def get_item_single(self, item_id):
+        tmp_item_response = requests.get(
+            self.items_basic_url + item_id)
+        if not tmp_item_response.status_code == 200:
             return None
-        assistant.write(assistant.path(
-            'resource/gamedata/items.json'), self.item_response.json())
-        self._Items()
-        return self.item_response
+        tmp_dict_item = tmp_item_response.json()
+        tmp_object_item = self.Item_T(tmp_dict_item)
+        self.items[tmp_object_item.id] = tmp_object_item
+        return tmp_object_item
 
-    def _get_and_refresh_stage(self):
-        self.stage_response = requests.get(self.stage_url)
-        if not self.stage_response.status_code == 200:
+    def get_item_all(self):
+        tmp_item_response = assistant.get_response(self.items_basic_url)
+        if not tmp_item_response.status_code == 200:
             return None
+
+        self.items.clear()
+        tmp_list_items = tmp_item_response.json()
         assistant.write(assistant.path(
-            'resource/gamedata/stages.json'), self.stage_response.json())
-        self._Stages()
-        return self.stage_response
-
-    def _Matrix(self):
-        '''
-        Drop Matrix Model
-        {
-            stageId: string,
-            itemId: string,
-            quantity: number,
-            times: number,
-            start: number,
-            end: number
-        }
-        '''
-        tmp_matrix: list = assistant.read(
-            assistant.path('resource/gamedata/matrix.json'))['matrix']
-        self.matrix = []
-        for tmp_unit in tmp_matrix:
-            tmp_stage = self.stages[tmp_unit['stageId']]
-            tmp_unit['apCost'] = tmp_stage.ap_cost
-            tmp_unit['zoneId'] = tmp_stage.zone_id
-            tmp_unit['open_time'] = tmp_stage.existence.get('open_time')
-            tmp_unit['close_time'] = tmp_stage.existence.get('close_time')
-            tmp_MatrixUnit_unit = self.MatrixUnit(tmp_unit)
-            self.matrix.append(tmp_MatrixUnit_unit)
-
-        return self.matrix
-
-    def _Items(self):
-        '''
-        items.json Model
-        {
-            "itemId": string,
-            "name": string,
-            "name_i18n": {
-                dict
-            },
-            "existence": {
-                "CN": {
-                    "exist": bool
-                },
-                "JP": {
-                    "exist": bool
-                },
-                "KR": {
-                    "exist": bool
-                },
-                "US": {
-                    "exist": bool
-                }
-            },
-            "itemType": string,
-            "sortId": int,
-            "rarity": int,
-            "groupID": string,
-            "spriteCoord": [
-                int
-            ],
-            "alias": {
-                "ja": [
-                    string
-                ],
-                "zh": [
-                    string
-                ]
-            },
-            "pron": {
-                "ja": [
-                    string
-                ],
-                "zh": [
-                    string
-                ]
-            }
-        },
-        '''
-        tmp_list_items: list = assistant.read(
-            assistant.path('resource/gamedata/items.json'))
-        self.items = {}
+            'resource/gamedata/items.json'), tmp_list_items)
         if tmp_list_items is not None:
             for tmp_dict_item in tmp_list_items:
-                tmp_Item_item = self.Item(tmp_dict_item)
-                self.items[tmp_Item_item.id] = tmp_Item_item
-
+                tmp_object_item = self.Item_T(tmp_dict_item)
+                self.items[tmp_object_item.id] = tmp_object_item
         return self.items
 
-    def _Stages(self):
-        '''
-        stages.json Model
-        {
-           "stageId": string,
-           "zoneId": string,
-           "stageType": string,
-           "code": string,
-           "code_i18n": {
-              "en": string,
-              "ja": string,
-              "ko": string,
-              "zh": string
-           },
-           "apCost": int,
-           "existence": {
-              "CN": {
-                 "exist": bool
-              },
-              "JP": {
-                 "exist": bool
-              },
-              "KR": {
-                 "exist": bool
-              },
-              "US": {
-                 "exist": bool
-              }
-           },
-           "minClearTime": int,
-           "dropInfos": [
-              {
-                 "dropType": string,
-                 "bounds": {
-                    "lower": int,
-                    "upper": int
-                 }
-              }
-           ]
-        }
-        '''
-        tmp_list_stages: list = assistant.read(
-            assistant.path('resource/gamedata/stages.json'))
+    def get_stage_single(self, stage_id):
+        tmp_stage_response = requests.get(
+            self.items_basic_url + stage_id)
+        if not tmp_stage_response.status_code == 200:
+            return None
+        tmp_dict_stage = tmp_stage_response.json()
+        tmp_object_stage = self.Stage_T(tmp_dict_stage)
+        return tmp_object_stage
+
+    def get_stage_all(self):
+        tmp_stage_response = requests.get(self.stages_basic_url)
+        if not tmp_stage_response.status_code == 200:
+            return None
+
+        tmp_list_stages = tmp_stage_response.json()
         self.stages = {}
+        assistant.write(assistant.path(
+            'resource/gamedata/stages.json'), tmp_list_stages)
         if tmp_list_stages is not None:
             for tmp_dict_stage in tmp_list_stages:
-                tmp_Stage_stage = self.Stage(tmp_dict_stage)
-                self.stages[tmp_Stage_stage.id] = tmp_Stage_stage
-
+                tmp_object_stage = self.Stage_T(tmp_dict_stage)
+                self.stages[tmp_object_stage.id] = tmp_object_stage
         return self.stages
 
-    def get_and_refresh(self):
-        for i in range(5):
-            if self._get_and_refresh_item() is not None:
-                break
-        for i in range(5):
-            if self._get_and_refresh_stage() is not None:
-                break
-        for i in range(5):
-            if self._get_and_refresh_matrix() is not None:
-                break
+    def __calcu_drop_prob(self, quantity, times):
+        if times == 0 or quantity == 0:
+            return 0
+        return round((quantity / times), 3)
 
-    def name_to_id(self, name: str, flag: str = 'item'):
+    def __calcu_ap_expec(self, ap_cost, drop_prob):
+        if drop_prob == 0:
+            return 2e31
+        return round((ap_cost / drop_prob), 1)
+
+    def get_zone_all(self):
+        tmp_zone_response = assistant.get_response(
+            self.zone_basic_url)
+        if not tmp_zone_response.status_code == 200:
+            return None
+
+        self.zones.clear()
+        tmp_list_zones = tmp_zone_response.json()
+        for tmp_dict_zone in tmp_list_zones:
+            self.zones[tmp_dict_zone['zoneId']] = tmp_dict_zone
+        return self.zones
+
+    # return: str | list[str]
+    def name_to_id(self, name: str, flag: str):
+        # 为了防止重名物品/关卡，返回所有匹配的物品/关卡id,但理论上不存在重名物品
+        list_res = []
         if flag == 'item':
-            tmp_items = assistant.item_filter(self.items)
-            for key in tmp_items.keys():
+            for key in self.items.keys():
                 if name == self.items[key].name:
-                    return self.items[key].id
+                    list_res.append(self.items[key].id)
         elif flag == 'stage':
-            tmp_stages = assistant.stage_filter(self.stages)
-            for key in tmp_stages.keys():
-                if name == tmp_stages[key].code:
-                    return tmp_stages[key].id
+            for key in self.stages.keys():
+                if name == self.stages[key].code:
+                    list_res.append(self.stages[key].id)
+                    # 目前只可能存在初始、复刻、别传/插曲关卡
+                    if list_res.__len__() >= 3:
+                        return list_res
+        # 如果只有一个匹配项，返回该项
+        if list_res.__len__() == 1:
+            return list_res[0]
+        else:
+            return list_res
 
-    def id_to_name(self, id: str, flag: str = 'item'):
+    def id_to_name(self, id: str, flag: str):
         if flag == 'item':
-            items = assistant.item_filter(self.items)
-            if id in items.keys():
-                return items[id].name
+            if id in self.items.keys():
+                return self.items[id].name
         elif flag == 'stage':
-            stages = assistant.stage_filter(self.stages)
-            if id in stages.keys():
-                return stages[id].code
+            if id in self.stages.keys():
+                return self.stages[id].code
 
-    def load_item(self, item_id) -> Item:
-        return self.Item(self.items[item_id])
+    def item_order(self, item_id) -> list:
+        return self.matrix['by_item'][item_id]
 
-    def load_stage(self, stage_id) -> Stage:
-        return self.Stage(self.stages[stage_id])
+    def stage_order(self, stage_id) -> list:
+        return self.matrix['by_stage'][stage_id]
 
-    def item_order(self, item_id) -> list[MatrixUnit]:
-        # 参数检验
-        if item_id == None:
-            return
+    def item_and_stage_order(self, item_id, stage_id) -> MatrixUnit_T:
+        for unit in self.matrix['by_item'][item_id]:
+            if unit['stageId'] == stage_id:
+                return self.MatrixUnit_T(unit)
 
-        list_result = []
-        # item = self.load_item_data(item_id)
-        for unit in self.matrix:
-            if unit.item_id == item_id:
-                list_result.append(unit)
-        return list_result
-
-    def stage_order(self, stage_id) -> list[MatrixUnit]:
-        # 参数检验
-        if stage_id == None:
-            return
-
-        list_result = []
-        # stage = self.load_item_data(stage_id)
-        for unit in self.matrix:
-            if unit.stage_id == stage_id:
-                list_result.append(unit)
-        return list_result
-
-    def item_and_stage_order(self, item_id, stage_id) -> dict:
-        for unit in self.matrix:
-            if unit.stage_id == stage_id and unit.item_id == item_id:
-                return unit
+    def set_args(self, **kwargs):
+        self.get_matrix(kwargs)
