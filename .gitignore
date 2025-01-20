@@ -1,3 +1,6 @@
 __pycache__/
 plugin/**/*.json
 !plugin/**/app.json
+plugin/mock.py
+plugin/task.log
+plugin/buffer/todo.md
