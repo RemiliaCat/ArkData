@@ -23,8 +23,9 @@ class Event(object):
 
         # 定时刷新数据
         Timer = timer.TaskTimer()
-        Timer.join_task(refresh, [Proc],
-                        timing=obj_settings.int_refresh_timing)
+        # Timer.join_task(refresh, [Proc],
+        #                 timing=obj_settings.int_refresh_timing)
+        Timer.join_task(refresh, [Proc], timing=4)
         Timer.start()
 
     def group_message(plugin_event, Proc: OlivOS.API.Proc_templet):
