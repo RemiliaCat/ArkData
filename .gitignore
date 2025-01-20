@@ -1,3 +1,9 @@
 __pycache__/
-plugin/**/*.json
-!plugin/**/app.json
+plugin/ArkSearcher/__pycache__/
+plugin/ArkData/
+plugin/lib/
+plugin/plugin/
+plugin/mock.py
+plugin/buffer/
+
+*.log

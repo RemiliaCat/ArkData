@@ -19,12 +19,13 @@ class Event(object):
         global obj_settings
         obj_settings = settings.Settings()
         global game_data
-        game_data = API.Data()
+        game_data = API.Data(show_closed_zones=True)
 
         # 定时刷新数据
         Timer = timer.TaskTimer()
-        Timer.join_task(refresh, [Proc],
-                        timing=obj_settings.int_refresh_timing)
+        # Timer.join_task(refresh, [Proc],
+        #                 timing=obj_settings.int_refresh_timing)
+        Timer.join_task(refresh, [Proc], timing=14.16)
         Timer.start()
 
     def group_message(plugin_event, Proc: OlivOS.API.Proc_templet):
@@ -38,7 +39,7 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
     # 变量初始化
     message = plugin_event.data.message
     item: API.Item = None
-    stage: API.Data.Stage = None
+    stage: API.Data.Stage_T = None
     units_by_item = None
     list_format_subcommands = {}
 
@@ -55,7 +56,12 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
         if match_subcommand in obj_settings.list_match_subcommand_item:
             # 变量设置
             item_name = match_arg
-            item_id = game_data.name_to_id(item_name)
+            item_id = game_data.name_to_id(item_name, flag='item')
+            if item_id is list:
+                if item_id.epmty():
+                    plugin_event.reply(obj_settings.str_no_target)
+                    return
+                item_id = item_id[0]
             item = game_data.items[item_id]
             units_by_item = game_data.item_order(item.id)
             tip = ''
@@ -68,7 +74,7 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
             # 筛选
             top = None
             maxn = None
-            # 如果有20个以上的单元，筛选最低理智期望的20个
+            # 如果有15个以上的单元，筛选最低理智期望的20个
             if len(units_by_item) >= 15:
                 top = 15
             # 否则，如果材料稀有等级为0~4，分别设置最小边界
@@ -94,12 +100,17 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
             # 字符串格式化并输出
             open_stages: str = ''
             for unit in units_by_item:
-                unit: API.Data.MatrixUnit
+                unit: API.Data.MatrixUnit_T
                 stage_code: str = game_data.id_to_name(
-                    unit.stage_id, flag='stage')
-                open_stages += stage_code + \
-                    '(' + str(unit.ap_drop_rate) + '/' + \
-                    str(round(unit.drop_probability*100, 1)) + '%)，'
+                    unit['stage_id'], flag='stage')
+                if '_rep' in unit['stage_id']:
+                    stage_code += '·复刻'
+                elif '_perm' in unit['stage_id']:
+                    stage_code += '·永久'
+                if stage_code is not None:
+                    open_stages += stage_code + \
+                        '(' + str(unit['ap_expec']) + '/' + \
+                        str(round(unit['drop_prob']*100, 1)) + '%)，'
             open_stages = open_stages[:-1]
             list_format_subcommands = {'item_name': item_name,
                                        'tip': tip, 'open_stages': open_stages}
@@ -109,28 +120,56 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
         # 掉率按关卡
         elif match_subcommand in obj_settings.list_match_subcommand_stage:
             # 变量设置
-            stage_code = match_arg
+            stage_code = match_arg.replace('复刻', '').replace(
+                '别传', '').replace('插曲', '')
             stage_id = game_data.name_to_id(stage_code, flag='stage')
-            print(stage_id)
-            units_by_stage = game_data.stage_order(stage_id)
             tip = ''
+
+            if type(stage_id) == list:
+                if stage_id.epmty():
+                    plugin_event.reply(obj_settings.str_no_target)
+                    return
+
+                if '复刻' in match_arg:
+                    stage_id = filter(
+                        lambda x: '_rep' in x, stage_id)
+                    tip = '·复刻'
+                elif '插曲' in match_arg or '别传' in match_arg:
+                    stage_id = filter(
+                        lambda x: '_perm' in x, stage_id)
+                    tip = '·永久'
+                else:
+                    stage_id = filter(
+                        lambda x: not ('_perm' in x or '_rep' in x), stage_id)
+                    tip = ''
+                stage_id = list(stage_id).pop()
+            units_by_stage = game_data.stage_order(stage_id)
+
+            # 筛选
+            if '别传' in stage_code:
+                units_by_stage = game_data.stage_order(stage_id)
+                units_by_stage = assistant.matrix_filter(
+                    units_by_stage, show_perm_zone=True)
+            elif '插曲' in stage_code:
+                units_by_stage = assistant.matrix_filter(
+                    units_by_stage, show_perm_zone=True)
+            else:
+                units_by_stage = assistant.matrix_filter(
+                    units_by_stage, show_perm_zone=False)
 
             # 关卡验证
             if units_by_stage == None:
                 plugin_event.reply(obj_settings.str_no_target)
                 return
 
-            # 筛选
-            units_by_stage = assistant.matrix_filter(
-                units_by_stage)
             # 字符串格式化并输出
             drop_items: str = ''
             for unit in units_by_stage:
-                unit: API.Data.MatrixUnit
+                unit: API.Data.MatrixUnit_T
                 tmp_item_name: str = game_data.id_to_name(
-                    unit.item_id)
+                    unit['item_id'], flag='item')
                 drop_items += tmp_item_name + \
-                    '(' + str(round(unit.drop_probability*100, 1)) + '%)，'
+                    '(' + str(round(unit['drop_prob']*100, 1)) + '%)，'
             drop_items = drop_items[:-1]
             list_format_subcommands = {'stage_code': stage_code,
                                        'tip': tip, 'open_drop_items': drop_items}
@@ -139,5 +178,6 @@ def unity_reply(plugin_event: OlivOS.API.Event, Proc: OlivOS.API.Proc_templet, g
 
 
 def refresh(Proc: OlivOS.API.Proc_templet):
-    game_data.get_and_refresh()
-    Proc.log(1, '已刷新明日方舟游戏数据')
+    game_data.refresh()
+    Proc.log('数据已刷新')
+    print('数据已刷新')

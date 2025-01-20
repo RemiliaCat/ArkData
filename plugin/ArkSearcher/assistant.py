@@ -1,4 +1,5 @@
 import json
+import requests
 
 
 def path(pt: str = ''):
@@ -25,36 +26,41 @@ def read(pt: str):
         return json.load(file)
 
 
+def get_response(url):
+    for i in range(5):
+        try:
+            return requests.get(url)
+        except:
+            pass
+
+
 def matrix_filter(
     units,
-    block_perm: bool = False,
-    block_closure: bool = True,
+    show_perm_zone: bool = False,
     max_rate: float = None,
     top_rate: int = None
 ):
     '''Marix过滤器
-    @info               :   min_rate与top_rate二选一，优先top_rate
-    @param block_disperm:   筛选永久关卡（如CW-8·别传）
-    @param block_closure:   筛选已开放关卡/物品
-    @param max_rate     :   筛选最高理智期望
-    @param top_rate     :   筛选前n位最低理智期望
+    @info                   :   min_rate与top_rate二选一，优先top_rate
+    @param show_perm_zone   :   筛选出永久关卡（如CW-8·别传）
+    @param max_rate         :   筛选掉最高理智期望
+    @param top_rate         :   筛选出前n位最低理智期望
     '''
+    tmp_units = units
+    if not show_perm_zone:
+        for unit in tmp_units.copy():
+            if unit['zone_subtype'] == 'ACTIVITY_PERMANENT':
+                tmp_units.remove(unit)
     is_min = True
     if top_rate:
-        units = sorted(units, key=lambda x: x.ap_drop_rate)
-        units = units[:top_rate]
         is_min = False
-    for unit in units:
-        if block_perm:
-            if unit.zone_subtype == 'ACTIVITY_PERMANENT':
-                units.remove(unit)
-        if block_closure:
-            if unit.close_time is not None:
-                units.remove(unit)
-        if max_rate and is_min:
-            if unit.ap_drop_rate > max_rate:
-                units.remove(unit)
-    return units
+        tmp_units = sorted(tmp_units, key=lambda x: x['ap_expec'])
+        tmp_units = tmp_units[:top_rate]
+    if max_rate and is_min:
+        for unit in tmp_units.copy():
+            if unit['ap_drop_rate'] > max_rate:
+                tmp_units.remove(unit)
+    return tmp_units
 
 
 def item_filter(units: dict):
@@ -63,15 +69,20 @@ def item_filter(units: dict):
     return units
 
 
-def stage_filter(units: dict, block_perm: bool = True, block_closure: bool = True):
+def stage_filter(units: dict, stage_id: str = None, show_perm_zone: bool = False):
     '''stages过滤器
     '''
-    for key in units.keys():
-        if block_closure:
-            if units[key].existence.get('close_time') is not None:
-                units.pop(key)
-        if block_perm:
-            unit_id = units[key].id
-            if unit_id[-5:-1] == '_perm':
-                units.pop(key)
+    tmp_units = units
+    if stage_id is not None:
+        if stage_id in units:
+            tmp_units[stage_id] = units[stage_id]
+        return tmp_units
+    if not show_perm_zone:
+        tmp_units = {key: value for key,
+                     value in tmp_units.items() if not 'perm' in value.id}
+    units = tmp_units
     return units
+
+
+def zone_filter(units: dict):
+    pass

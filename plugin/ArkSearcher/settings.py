@@ -8,7 +8,7 @@ class Settings(object):
         self.str_freply_item = '材料名称：{item_name}\n开放来源{tip}：\n（理智期望/掉率）\n{open_stages}\n数据来自企鹅物流数据统计（https://penguin-stats.io/）'
 
         # 按关卡时的格式串*
-        self.str_freply_stage = '来源名称：{stage_code}\n材料掉率{tip}：\n{open_drop_items}\n数据来自企鹅物流数据统计（https://penguin-stats.io/）'
+        self.str_freply_stage = '来源名称：{stage_code}{tip}\n材料掉率：\n{open_drop_items}\n数据来自企鹅物流数据统计（https://penguin-stats.io/）'
 
         # 查询参数[掉率按素材]的设置*
         self.list_match_subcommand_item = ['掉率', '材料掉率',
@@ -36,7 +36,7 @@ class Settings(object):
         self.str_match_subcommands = self.str_match_subcommand_item + \
             '|'+self.str_match_subcommand_stage
 
-        # 可自定义匹配词*
+        # 可自定义匹配命令
         # 请确保<subcommand>和<arg>存在
         # <subcommand>: 查询子命令
         # <arg>: 查询参数
@@ -47,3 +47,6 @@ class Settings(object):
 
         # 数据刷新时间*
         self.int_refresh_timing = 4
+
+        # get请求重试次数
+        self.int_retry_get_times = 5
